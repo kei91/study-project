@@ -17,7 +17,11 @@ int main()
 			std::this_thread::yield();
 		}
 
-		shared_counter.fetch_add(1, std::memory_order_acq_rel);
+		shared_counter.fetch_add(1, std::memory_order_acquire);
+
+		while (unique_lock.load(std::memory_order_acquire) || unique_waiting.load(std::memory_order_acquire)) {
+			std::this_thread::yield();
+		}
 
 		std::cout << "sum: " << sum << '\n';
 
@@ -26,11 +30,11 @@ int main()
 
 	auto mutex_unique_write = [&](const int id) {
 
-		while (unique_waiting.exchange(true, std::memory_order_acquire)) {
+		while (shared_counter.load(std::memory_order_acquire) > 0) {
 			std::this_thread::yield();
 		}
 
-		while (shared_counter.load() > 0) {
+		while (unique_waiting.exchange(true, std::memory_order_acquire)) {
 			std::this_thread::yield();
 		}
 
